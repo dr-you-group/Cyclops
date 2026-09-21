@@ -57,6 +57,13 @@ public:
         aggregate = std::move(callback);
     }
 
+    // Proximal block CCD.  size == 1 and alpha == 1.0 reproduce the legacy
+    // coordinate-at-a-time path and are the defaults.
+    void setBlockUpdate(int size, double alpha) {
+        blockSize = (size < 1) ? 1 : size;
+        proximalAlpha = alpha;
+    }
+
 	typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> Matrix;
 
 	CyclicCoordinateDescent(
@@ -247,6 +254,8 @@ public:
 protected:
 
     Aggregation aggregate;
+    int blockSize = 1;
+    double proximalAlpha = 1.0;
 
 	bsccs::unique_ptr<AbstractModelSpecifics> privateModelSpecifics;
 
@@ -338,6 +347,8 @@ protected:
 	void mmUpdateAllBeta(std::vector<double>& allDelta,
                          const std::vector<bool>& fixedBeta);
 
+
+	double applyBoundsScaled(double delta, int index, double alpha);
 
 	double applyBounds(
 			double inDelta,

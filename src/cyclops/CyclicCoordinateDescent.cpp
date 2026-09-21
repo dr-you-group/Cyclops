@@ -1207,6 +1207,72 @@ void CyclicCoordinateDescent::findMode(
 	    			}
 	    		}
 	    		hBeta = modelSpecifics.getBeta();
+	    	} else if (aggregate && blockSize > 1) {
+
+	    		// ---- Proximal block CCD -------------------------------------
+	    		// One aggregation per block of blockSize coordinates.  Every
+	    		// gradient/curvature in a block is evaluated at the beta state
+	    		// holding at the start of the block (Jacobi), then all
+	    		// coordinates in the block are updated.  Packet layout is
+	    		// [g(1..w), h(1..w), beta(1..w), bound(1..w)] so that the
+	    		// aggregator sums 1..2w and checks 2w+1..4w; at w == 1 this is
+	    		// the original scalar packet.
+	    		const int P = blockSize;
+	    		std::vector<double> packet;
+	    		for (int start = 0; start < J; start += P) {
+	    			const int width = (P < J - start) ? P : J - start;
+
+	    			if (!sufficientStatisticsKnown) {
+	    				std::ostringstream stream;
+	    				stream << "Error in state synchronization.";
+	    				error->throwError(stream);
+	    			}
+
+	    			packet.assign(4 * width, 0.0);
+	    			for (int k = 0; k < width; ++k) {
+	    				const int index = start + k;
+	    				computeNumeratorForGradient(index);
+	    				double g = 0.0;
+	    				double h = 0.0;
+	    				computeGradientAndHessian(index, &g, &h);
+	    				packet[k]                 = g;
+	    				packet[width + k]         = h;
+	    				packet[2 * width + k]     = hBeta[index];
+	    				packet[3 * width + k]     = hDelta[index];
+	    			}
+
+	    			const auto values = aggregate(start + 1, packet);
+
+	    			for (int k = 0; k < width; ++k) {
+	    				const int index = start + k;
+	    				if (fixBeta[index]) {
+	    					log(index);
+	    					continue;
+	    				}
+	    				priors::GradientHessian gh;
+	    				gh.first  = values[k];
+	    				gh.second = values[width + k];
+	    				if (gh.second < 0.0) {
+	    					gh.first = 0.0;
+	    					gh.second = 0.0;
+	    				}
+	    				// Damped proximal Newton step.  Scaling the curvature by
+	    				// 1/alpha makes getDelta() solve
+	    				//   argmin_d  g d + (h/2alpha) d^2 + lambda|beta + d|
+	    				// whose solution is soft(beta - alpha g/h, alpha lambda/h).
+	    				// Exact zeros are kept, which scaling the step afterwards
+	    				// (alpha * delta) would not do.
+	    				gh.second /= proximalAlpha;
+	    				double delta = jointPrior->getDelta(gh, hBeta, index, *this);
+	    				delta = applyBoundsScaled(delta, index, proximalAlpha);
+	    				if (delta != 0.0) {
+	    					sufficientStatisticsKnown = false;
+	    					updateSufficientStatistics(delta, index);
+	    				}
+	    				log(index);
+	    			}
+	    		}
+
 	    	} else {
 
 	    		// Do a complete cycle in serial
@@ -1750,6 +1816,24 @@ void CyclicCoordinateDescent::computeRemainingStatistics(bool allStats, int inde
 double CyclicCoordinateDescent::computeConvergenceCriterion(double newObjFxn, double oldObjFxn) {
 	// This is the stopping criterion that Ken Lange generally uses
 	return abs(newObjFxn - oldObjFxn) / (abs(newObjFxn) + 1.0);
+}
+
+double CyclicCoordinateDescent::applyBoundsScaled(double delta, int index, double alpha) {
+
+    if (delta < -hDelta[index]) {
+        delta = -hDelta[index];
+    } else if (delta > hDelta[index]) {
+        delta = hDelta[index];
+    }
+
+    // The trust region is kept in undamped step units.  Without the
+    // 1/alpha the damped step ratchets hDelta down onto the 1E-3 floor, which
+    // then caps every later step.  alpha == 1 reproduces applyBounds() exactly.
+    auto intermediate = std::max(std::abs(delta) * 2 / alpha, hDelta[index] / 2);
+    intermediate = std::max(intermediate, 1E-3);
+    hDelta[index] = intermediate;
+
+    return delta;
 }
 
 double CyclicCoordinateDescent::applyBounds(double delta, int index) {

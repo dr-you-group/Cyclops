@@ -33,6 +33,10 @@
     invisible(.Call(`_Cyclops_cyclopsSetAggregation`, inRcppCcdInterface, callback))
 }
 
+.cyclopsSetBlockUpdate <- function(inRcppCcdInterface, blockSize, alpha) {
+    invisible(.Call(`_Cyclops_cyclopsSetBlockUpdate`, inRcppCcdInterface, blockSize, alpha))
+}
+
 .cyclopsSetStartingBeta <- function(inRcppCcdInterface, inStartingBeta) {
     invisible(.Call(`_Cyclops_cyclopsSetStartingBeta`, inRcppCcdInterface, inStartingBeta))
 }
