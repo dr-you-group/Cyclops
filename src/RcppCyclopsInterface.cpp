@@ -146,11 +146,24 @@ void cyclopsSetAggregation(SEXP inRcppCcdInterface, SEXP callback) {
             !std::all_of(result.begin(), result.end(), [](double x) { return std::isfinite(x); })) {
             stop("Invalid aggregated statistics");
         }
-        if (coordinate > 0 && result[1] <= 0) {
-            stop("Global coordinate curvature must be positive");
+        if (coordinate > 0) {
+            // Packet is [g(1..w), h(1..w), beta(1..w), bound(1..w)].
+            // w == 1 reduces to the original result[1] check.
+            const size_t width = result.size() / 4;
+            for (size_t k = 0; k < width; ++k) {
+                if (result[width + k] <= 0) {
+                    stop("Global coordinate curvature must be positive");
+                }
+            }
         }
         return result;
     });
+}
+
+// [[Rcpp::export(".cyclopsSetBlockUpdate")]]
+void cyclopsSetBlockUpdate(SEXP inRcppCcdInterface, int blockSize, double alpha) {
+    XPtr<bsccs::RcppCcdInterface> interface(inRcppCcdInterface);
+    interface->getCcd().setBlockUpdate(blockSize, alpha);
 }
 
 // [[Rcpp::export(.cyclopsSetStartingBeta)]]

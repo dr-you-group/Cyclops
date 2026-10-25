@@ -231,8 +231,21 @@ fitCyclopsModel <- function(cyclopsData,
             prior$variance <= 0 || control$tolerance <= 0 || control$initialBound <= 0) {
             stop("Prior variance, tolerance and initial bound must be positive and finite")
         }
+        blockSize <- if (is.null(control$blockSize)) 1L else as.integer(control$blockSize)
+        alpha <- if (is.null(control$alpha)) 1 else as.numeric(control$alpha)
+        if (length(blockSize) != 1L || is.na(blockSize) || blockSize < 1L) {
+            stop("blockSize must be a single integer of at least one")
+        }
+        if (length(alpha) != 1L || !is.finite(alpha) || alpha <= 0 || alpha > 1) {
+            stop("alpha must be a single value in (0, 1]")
+        }
+        if (blockSize > 1L && alpha == 1) {
+            warning("Undamped block updates (alpha = 1) are unstable; see ESO bound")
+        }
         .cyclopsSetAggregation(cyclopsData$cyclopsInterfacePtr, control$aggregate)
+        .cyclopsSetBlockUpdate(cyclopsData$cyclopsInterfacePtr, blockSize, alpha)
         on.exit(.cyclopsSetAggregation(cyclopsData$cyclopsInterfacePtr, NULL), add = TRUE)
+        on.exit(.cyclopsSetBlockUpdate(cyclopsData$cyclopsInterfacePtr, 1L, 1), add = TRUE)
     }
 
     if (!is.null(startingCoefficients)) {
@@ -681,7 +694,9 @@ createControl <- function(maxIterations = 1000,
                           algorithm = "ccd",
                           doItAll = TRUE,
                           syncCV = FALSE,
-                          aggregate = NULL) {
+                          aggregate = NULL,
+                          blockSize = 1,
+                          alpha = 1) {
     validCVNames = c("grid", "auto")
     stopifnot(cvType %in% validCVNames)
 
@@ -717,7 +732,9 @@ createControl <- function(maxIterations = 1000,
                    algorithm = algorithm,
                    doItAll = doItAll,
                    syncCV = syncCV,
-                   aggregate = aggregate),
+                   aggregate = aggregate,
+                   blockSize = blockSize,
+                   alpha = alpha),
               class = "cyclopsControl")
 }
 

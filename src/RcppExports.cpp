@@ -96,6 +96,19 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// cyclopsSetBlockUpdate
+void cyclopsSetBlockUpdate(SEXP inRcppCcdInterface, int blockSize, double alpha);
+RcppExport SEXP _Cyclops_cyclopsSetBlockUpdate(SEXP inRcppCcdInterfaceSEXP, SEXP blockSizeSEXP, SEXP alphaSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type inRcppCcdInterface(inRcppCcdInterfaceSEXP);
+    Rcpp::traits::input_parameter< int >::type blockSize(blockSizeSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    cyclopsSetBlockUpdate(inRcppCcdInterface, blockSize, alpha);
+    return R_NilValue;
+END_RCPP
+}
+
 // cyclopsSetStartingBeta
 void cyclopsSetStartingBeta(SEXP inRcppCcdInterface, const std::vector<double>& inStartingBeta);
 RcppExport SEXP _Cyclops_cyclopsSetStartingBeta(SEXP inRcppCcdInterfaceSEXP, SEXP inStartingBetaSEXP) {
@@ -966,6 +979,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_Cyclops_cyclopsSetBeta", (DL_FUNC) &_Cyclops_cyclopsSetBeta, 2},
     {"_Cyclops_cyclopsGetBeta", (DL_FUNC) &_Cyclops_cyclopsGetBeta, 2},
     {"_Cyclops_cyclopsSetAggregation", (DL_FUNC) &_Cyclops_cyclopsSetAggregation, 2},
+    {"_Cyclops_cyclopsSetBlockUpdate", (DL_FUNC) &_Cyclops_cyclopsSetBlockUpdate, 3},
     {"_Cyclops_cyclopsSetStartingBeta", (DL_FUNC) &_Cyclops_cyclopsSetStartingBeta, 2},
     {"_Cyclops_cyclopsSetFixedBeta", (DL_FUNC) &_Cyclops_cyclopsSetFixedBeta, 3},
     {"_Cyclops_cyclopsGetFixedBeta", (DL_FUNC) &_Cyclops_cyclopsGetFixedBeta, 2},
